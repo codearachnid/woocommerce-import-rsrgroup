@@ -1,0 +1,186 @@
+         RSR inventory file data layout
+		(updated 10-12-2010)
+
+Format: Ascii text, semi-colon delimited.
+Import into Excel or other spreadsheet program and
+use data fields listed below as headings in spreadsheet.
+Use with files rsrinventory-new.txt and fulfillment-inv-new.txt.
+Data fields (66) (Listed below):
+
+1. RSR Stock Number
+
+2. UPC Code (if available or blank filler)
+
+3. Product Description
+
+4. Department Number
+	 1 - Handguns
+	 2 - Used Handguns
+	 3 - Used Long Guns
+	 4 - Tasers
+	 5 - Sporting Long Guns
+	 6 - Not Used
+	 7 - Black Powder Firearms
+	 8 - Scopes
+	 9 - Scope Mounts
+	10 - Magazines
+	11 - Grips/Pads/Stocks
+	12 - Soft Gun Cases
+	13 - Misc. Accessories
+	14 - Holsters
+	15 - Reloading Equipment
+	16 - Black Powder Accessories
+	17 - Closeout Accessories
+	18 - Ammunition
+	19 - Not Used
+	20 - Flashlights & Batteries
+	21 - Cleaning Equipment
+	22 - Airguns
+	23 - Knives
+	24 - High Capacity Magazines
+	25 - Safes/Security
+	26 - Safety/Protection
+	27 - Non-Lethal Defense
+	28 - Binoculars
+	29 - Spotting Scopes
+	30 - Sights/Lasers/Lights
+	31 - Optical Accessories
+	32 - Barrels/Choke Tubes
+	33 - Clothing
+	34 - Parts
+	35 - Slings/Swivels
+	36 - Electronics
+	37 - Not Used
+	38 - Books/Software
+	39 - Targets
+	40 - Hard gun Cases
+	41 - Upper Receivers/Conv Kits
+	42 - Not Used
+	43 - Upper/Conv Kits-High Cap
+
+5. Manufacturer Id
+
+6. Retail Price (if available or .00)
+
+7. RSR Regular Price
+
+8. Product Weight (oz.)
+
+9. Inventory Quantity  (deleted sku's will have a 0 in this field and remain in file for 2 weeks, then removed)
+
+10. Model
+
+11. Full Manufacturer Name
+
+12. Manufacturer Part Number
+
+13. Allocated/Closeout/Deleted (Indicates if the item is "allocated", "Closeout" or "deleted", otherwise the field is blank)
+
+14. Expanded Product Description   
+
+15. Image name (if available) (composed of the RSR Stock Number_1.jpg )
+
+Next 51 fields are indicators of state restriction on this RSR Stock Number (in alphabetical order by the two letter state abbreviation).
+ If a Y in field item is restricted, if blank item is available for sale
+ 
+16. AK – Alaska
+
+17. AL – Alabama
+
+18. AR – Arkansas
+
+19. AZ – Arizona
+
+20. CA – California
+
+21. CO – Colorado
+
+22. CT – Connecticut
+
+23. DC – District of Columbia
+
+24. DE – Delaware
+
+25. FL – Florida
+
+26. GA – Georgia
+
+27. HI – Hawaii
+
+28. IA – Iowa
+
+29. ID – Idaho
+
+30. IL – Illinois
+
+31. IN – Indiana
+
+32. KS – Kansas
+
+33. KY – Kentucky
+
+34. LA – Louisiana
+
+35. MA – Massachusetts
+
+36. MD – Maryland
+
+37. ME – Maine
+
+38. MI – Michigan
+
+39. MN – Minnesota
+
+40. MO – Missouri
+
+41. MS – Mississippi
+
+42. MT – Montana
+
+43. NC – North Carolina
+
+44. ND – North Dakota
+
+45. NE – Nebraska
+
+46. NH – New Hampshire
+
+47. NJ – New Jersey
+
+48. NM – New Mexico
+
+49. NV – Nevada
+
+50. NY – New York
+
+51. OH – Ohio
+
+52. OK – Oklahoma
+
+53. OR – Oregon
+
+54. PA – Pennsylvania
+
+55. RI – Rhode Island
+
+56. SC – South Carolina
+
+57. SD – South Dakota
+
+58. TN – Tennessee
+
+59. TX – Texas
+
+60. UT – Utah
+
+61. VA – Virginia
+
+62. VT – Vermont
+
+63. WA – Washington
+
+64. WI – Wisconsin
+
+65. WV – West Virginia
+
+66. WY - Wyoming
