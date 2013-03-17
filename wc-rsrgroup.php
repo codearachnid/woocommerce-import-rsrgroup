@@ -8,12 +8,15 @@
  * Author: Timothy Wood (@codearachnid)
  * Author URI: http://www.codearachnid.com
  * Author Email: tim@imaginesimplicity.com
- * Text Domain: wc-rsrgroup
+ * Text Domain: woocommerce_rsrgroup
  * Requires: 3.5
  * License: GPLv3 or later
  * 
- * Notes: THIS FILE IS FOR LOADING THE LIBS ONLY
- * 
+ * Notes: 
+ *
+ *     Inventory: http://www.rsrgroup.com/dealer/ftpdownloads/fulfillment-inv-new.zip
+ *     Images: http://dl.dropbox.com/u/17688322/RSR-Web-Images.zip
+ *
  * License:
  * 
  * Copyright 2013 Imagine Simplicity (tim@imaginesimplicity.com)
@@ -22,30 +25,73 @@
  * 
  */
 
-class wc_import_rsrgroup {
-	private static $_this;
-	private $rsrgroup_path = array(
-		'images' => 'http://dl.dropbox.com/u/17688322/RSR-Web-Images.zip',
-		'inventory' => 'http://www.rsrgroup.com/dealer/ftpdownloads/fulfillment-inv-new.zip' );
+class WC_RSRGroup {
 
-	public $dir;
-	public $path;
-	public $url;
-	public $plugin_data;
+	private static $_this;
+	private $rsrgroup;
+	private $plugin_data;
+	private $dir;
+	private $path;
+	private $url;
 
 	const MIN_WP_VERSION = '3.5';
 
 	function __construct() {
 
-		// register lazy autoloading
-		spl_autoload_register( 'self::lazy_loader' );
+		if ( is_admin() ) {
 
-		$this->plugin_data = get_plugin_data( __FILE__ );
+			// register lazy autoloading
+			spl_autoload_register( 'self::lazy_loader' );
 
-		$this->path = self::get_plugin_path();
-		$this->dir = trailingslashit( basename( $this->path ) );
-		$this->url = plugins_url() . '/' . $this->dir;
+			// enable the settings	
+			$this->rsrgroup = new WC_RSRGroup_Integration();
 
+			$this->plugin_data = get_plugin_data( __FILE__ );
+
+			$this->path = self::get_plugin_path();
+			$this->dir = trailingslashit( basename( $this->path ) );
+			$this->url = plugins_url() . '/' . $this->dir;
+
+			add_action('init', array( $this, 'load_textdomain' ) );
+
+			add_action('woocommerce_rsrgroup_import_inventory', array( $this, 'import_inventory' ) );
+			do_action( 'woocommerce_rsrgroup_import_inventory' );
+		}
+
+	}
+
+	public function import_inventory(){
+
+		// get local dir properties
+		$wp_upload_dir = wp_upload_dir();
+
+		// download remove archived inventory csv
+		$remote_inventory = download_url( $this->rsrgroup->settings['remote_inventory'] );
+
+		// die gracefully if we don't have a file downloaded
+		if( empty($remote_inventory) )
+			return false;
+
+		// extract the csv from the zip
+		if ( unzip_file( $remote_inventory, $wp_upload_dir['path'] ) ) {
+			// Now that the zip file has been used, destroy it
+			unlink($remote_inventory);
+		} else {
+			return false;
+		}
+		
+	}
+
+	public function load_textdomain() {
+		load_plugin_textdomain('woocommerce_rsrgroup', false, dirname(plugin_basename(__FILE__)));
+	}
+
+	public function activation(){
+		wp_schedule_event( time(), 'daily', 'woocommerce_rsrgroup_import_inventory');
+	}
+
+	public function deactivation(){
+		wp_clear_scheduled_hook('woocommerce_rsrgroup_import_inventory');
 	}
 
 	public static function lazy_loader( $class_name ) {
@@ -75,7 +121,7 @@ class wc_import_rsrgroup {
 
 	public static function fail_notices() {
 		printf( '<div class="error"><p>%s</p></div>', 
-			sprintf( __( '%1$s requires WordPress v%2$s or higher.', 'wp-plugin-framework' ), 
+			sprintf( __( '%1$s requires WordPress v%2$s or higher.', 'woocommerce_rsrgroup' ), 
 				$this->plugin_data['Name'], 
 				self::MIN_WP_VERSION 
 			));
@@ -101,21 +147,23 @@ class wc_import_rsrgroup {
  *
  * @return void
  */
-function load_wc_import_rsrgroup() {
+function Load_WC_RSRGroup() {
 
 	// we assume class_exists( 'WPPluginFramework' ) is true
-	if ( apply_filters( 'wc_rsrgroup_pre_check', wc_import_rsrgroup::prerequisites() ) ) {
+	if ( apply_filters( 'wc_rsrgroup_pre_check', WC_RSRGroup::prerequisites() ) ) {
 
 		// when plugin is activated let's load the instance to get the ball rolling
-		add_action( 'init', array( 'wc_import_rsrgroup', 'instance' ), -100, 0 );
+		add_action( 'init', array( 'WC_RSRGroup', 'instance' ), -100, 0 );
 
 	} else {
 
 		// let the user know prerequisites weren't met
-		add_action( 'admin_head', array( 'wc_import_rsrgroup', 'fail_notices' ), 0, 0 );
+		add_action( 'admin_head', array( 'WC_RSRGroup', 'fail_notices' ), 0, 0 );
 
 	}
 }
 
 // high priority so that it's not too late for addon overrides
-add_action( 'plugins_loaded', 'load_wc_import_rsrgroup' );
+add_action( 'plugins_loaded', 'Load_WC_RSRGroup' );
+register_deactivation_hook( __FILE__, array( 'WC_RSRGroup', 'deactivation' ));
+register_activation_hook( __FILE__, array( 'WC_RSRGroup', 'activation' ));
