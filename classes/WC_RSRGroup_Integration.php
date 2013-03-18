@@ -39,12 +39,6 @@ class WC_RSRGroup_Integration extends WC_Integration {
     function init_form_fields() {
 
     	$this->form_fields = array(
-			'remote_images' => array(
-				'title' 			=> __( 'Remote Image Archive', 'woocommerce_rsrgroup' ),
-				'description' 		=> __( 'Provide the link to the image archive. Note: we assume that it will be in zip format.', 'woocommerce_rsrgroup' ),
-				'type' 				=> 'text',
-		    	'default' 			=> 'http://dl.dropbox.com/u/17688322/RSR-Web-Images.zip'
-			),
 			'remote_inventory' => array(
 				'title' 			=> __( 'Remote Inventory Feed', 'woocommerce_rsrgroup' ),
 				'description' 		=> __( 'Provide the link to the inventory feed. Note: we assume that it will be in zip format.', 'woocommerce_rsrgroup' ),
