@@ -215,12 +215,10 @@ class WC_RSRGroup {
 				$product_id = $product_id[0];
 			}
 
-			echo $title . '<br />';
-
 			if ( !empty( $product_id ) ) {
 
-				// $remote_image = $this->remote_media_file( $image_file );
-				// $attach_id = $this->import_image( $remote_image, $product_id, $title );
+				$remote_image = $this->remote_media_file( $image_file );
+				$attach_id = $this->import_image( $remote_image, $product_id, $title );
 
 				// only needed for new product imports
 				add_post_meta( $product_id, '_visibility', 'visible', true );
@@ -236,11 +234,6 @@ class WC_RSRGroup {
 				update_post_meta( $product_id, '_rsrgroup_upc', $upc );
 				update_post_meta( $product_id, '_rsrgroup_manufacturer_part_num', $manufacturer_part_num );
 			}
-
-			echo '<hr />';
-
-			break;
-
 		}
 	}
 
