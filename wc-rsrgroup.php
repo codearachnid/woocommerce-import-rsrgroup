@@ -41,6 +41,14 @@ class WC_RSRGroup {
 
 	function __construct() {
 
+		// register lazy autoloading
+		spl_autoload_register( 'self::lazy_loader' );
+
+		// filter for s3 images
+		add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url' ), 10, 2 );
+		add_filter( 'image_downsize', array( $this, 'image_downsize'), 10, 2);
+
+		// admin only functionality
 		if ( is_admin() ) {
 
 			// ensure that $wp_filesystem is activated for this plugin
@@ -49,11 +57,7 @@ class WC_RSRGroup {
 
 			global $wp_filesystem;
 			WP_Filesystem();
-
-
-			// register lazy autoloading
-			spl_autoload_register( 'self::lazy_loader' );
-
+			
 			// enable the settings
 			$this->rsrgroup = new WC_RSRGroup_Integration();
 
@@ -66,9 +70,6 @@ class WC_RSRGroup {
 
 			add_action( 'init', array( $this, 'load_textdomain' ) );
 			add_action( 'init', array( $this, 'load_custom_fields' ) );
-
-			// filter for s3 images
-			add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url' ), 10, 2 );
 
 			add_action('admin_menu', array( $this, 'admin_menu') );
 
@@ -94,7 +95,8 @@ class WC_RSRGroup {
 
 	/**
 	 * wp_get_attachment_url if it is an rsrgroup image attachment we assume it's hosted on AWS S3
-	 *
+	 * so link to the image by _wp_attached_file
+	 * 
 	 * @param string  $url
 	 * @param int     $attachment_id
 	 * @return string $url
@@ -104,6 +106,27 @@ class WC_RSRGroup {
 			$url = get_post_meta( $attachment_id, '_wp_attached_file', true );
 		}
 		return $url;
+	}
+
+	/**
+	 * image_downsize if it is an rsrgroup image attachment we assume it's hosted on AWS S3,
+	 * cue taken from image_downsize for getting image size
+	 * 
+	 * @param string  $image
+	 * @param int     $attachment_id
+	 * @return string $url
+	 */
+	public function image_downsize( $image = false, $attachment_id ) {
+		if ( get_post_meta( $attachment_id, '_rsrgroup_media', true ) ) {
+			$img_url = get_post_meta( $attachment_id, '_wp_attached_file', true );
+
+			// cue taken from image_downsize for getting image size
+			$meta = wp_get_attachment_metadata($attachment_id);
+			$width = $meta['width'];
+			$height = $meta['height'];
+			$image = array( $img_url, $width, $height );
+		}
+		return $image;
 	}
 
 	/**
