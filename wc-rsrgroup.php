@@ -199,7 +199,7 @@ class WC_RSRGroup {
 		// split out new rows
 		$inventory_rows = explode( "\n", $inventory_data );
 
-		foreach ( $inventory_rows as $row ) {
+		foreach ( new LimitIterator( new ArrayIterator($inventory_rows), 4300) as $key => $row ) {
 			// see rsr_inventory_file_layout.txt for specifics to var + position
 			list( $sku,
 				$upc,
