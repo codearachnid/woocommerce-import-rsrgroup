@@ -640,5 +640,5 @@ function Load_WC_RSRGroup() {
 
 // high priority so that it's not too late for addon overrides
 add_action( 'plugins_loaded', 'Load_WC_RSRGroup' );
-register_deactivation_hook( __FILE__, array( 'WC_RSRGroup', 'deactivation' ) );
-register_activation_hook( __FILE__, array( 'WC_RSRGroup', 'activation' ) );
+// register_deactivation_hook( __FILE__, array( 'WC_RSRGroup', 'deactivation' ) );
+// register_activation_hook( __FILE__, array( 'WC_RSRGroup', 'activation' ) );
