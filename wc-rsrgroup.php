@@ -72,6 +72,8 @@ class WC_RSRGroup {
 			add_action( 'init', array( $this, 'load_custom_fields' ) );
 
 			add_action('admin_menu', array( $this, 'admin_menu') );
+			add_filter( 'manage_upload_columns', array( $this, 'manage_upload_columns' ) );
+			add_action( 'manage_media_custom_column', array( $this, 'manage_media_custom_column' ), 10, 2 );
 
 			add_action( 'woocommerce_rsrgroup_import_inventory', array( $this, 'import_inventory' ) );
 
@@ -82,6 +84,20 @@ class WC_RSRGroup {
 
 		}
 
+	}
+
+	function manage_upload_columns( $columns ) {
+		$columns['rsrgroup'] = 'RSR Image';    
+		return $columns;
+	}
+
+	function manage_media_custom_column( $column_name, $post_id ) {
+		if( 'rsrgroup' != $column_name || !wp_attachment_is_image( $post_id ) )
+			return;
+
+		$_rsrgroup_media = get_post_meta( $post_id, '_rsrgroup_media', true );
+		
+		echo $_rsrgroup_media ? 'Yes' : 'No';
 	}
 
 	function manual_import(){
@@ -122,8 +138,8 @@ class WC_RSRGroup {
 
 			// cue taken from image_downsize for getting image size
 			$meta = wp_get_attachment_metadata($attachment_id);
-			$width = $meta['width'];
-			$height = $meta['height'];
+			$width = !empty($meta['width']) ? $meta['width']: null;
+			$height = !empty($meta['height']) ? $meta['height']: null;
 			$image = array( $img_url, $width, $height );
 		}
 		return $image;
@@ -234,19 +250,19 @@ class WC_RSRGroup {
 				// insert the product into the database
 				$product_id = wp_insert_post( $import_product );
 
-			} else {
-				$product_id = $product_id[0];
-			}
-
-			if ( !empty( $product_id ) ) {
-
-				$remote_image = $this->remote_media_file( $image_file );
-				$attach_id = $this->import_image( $remote_image, $product_id, $title );
-
 				// only needed for new product imports
 				add_post_meta( $product_id, '_visibility', 'visible', true );
 				add_post_meta( $product_id, '_regular_price', $regular_price, true );
 				add_post_meta( $product_id, '_price', $regular_price, true );
+
+			} else if( $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
+				$product_id = $product_id[0];
+			}
+
+			if ( !empty( $product_id ) && $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
+
+				$remote_image = $this->remote_media_file( $image_file );
+				$attach_id = $this->import_image( $remote_image, $product_id, $title );
 
 				// on reimport update product attributes
 				update_post_meta( $product_id, '_stock_status', 'instock' );

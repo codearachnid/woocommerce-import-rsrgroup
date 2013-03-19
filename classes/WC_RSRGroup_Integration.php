@@ -56,6 +56,12 @@ class WC_RSRGroup_Integration extends WC_Integration {
 				'description' 		=> __( 'Will use a predefined CloudFront archive to import media references.', 'woocommerce_rsrgroup' ),
 				'default'	=> 'yes',
 				'type' 		=> 'checkbox'
+			),
+			'only_new' => array(
+				'title' 			=> __( 'Only New Products', 'woocommerce_rsrgroup' ),
+				'description' 		=> __( 'Import only new products; this will help reduce the load if your site is struggling during import.', 'woocommerce_rsrgroup' ),
+				'default'	=> 'yes',
+				'type' 		=> 'checkbox'
 			)
 		);
 
