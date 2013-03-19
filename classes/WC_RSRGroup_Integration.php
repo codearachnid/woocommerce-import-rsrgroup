@@ -46,7 +46,7 @@ class WC_RSRGroup_Integration extends WC_Integration {
 		    	'default' 			=> 'http://www.rsrgroup.com/dealer/ftpdownloads/fulfillment-inv-new.zip'
 			),
 			'cloudfront' => array(
-				'title' 			=> __( 'CloudFront Domain', 'woocommerce_rsrgroup' ),
+				'title' 			=> __( 'Image Domain', 'woocommerce_rsrgroup' ),
 				'description' 		=> __( 'Consider setting up a CloudFront domain and uploading the images for inventory there for speed.', 'woocommerce_rsrgroup' ),
 				'type' 				=> 'text',
 		    	'default' 			=> 'http://rsrgroup.imaginesimplicity.com/'

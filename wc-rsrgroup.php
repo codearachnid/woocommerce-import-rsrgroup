@@ -33,12 +33,23 @@ class WC_RSRGroup {
 	private $dir;
 	private $path;
 	private $url;
+	private $file_check_pattern = array(
+		'archive' => '/[^\?]+\.(zip|ZIP|txt|TXT)/',
+		'image' => '/[^\?]+\.(jpg|JPG|gif|GIF)/' );
 
 	const MIN_WP_VERSION = '3.5';
 
 	function __construct() {
 
 		if ( is_admin() ) {
+
+			// ensure that $wp_filesystem is activated for this plugin
+			if ( !function_exists( 'download_url' ) )
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+
+			global $wp_filesystem;
+			WP_Filesystem();
+
 
 			// register lazy autoloading
 			spl_autoload_register( 'self::lazy_loader' );
@@ -55,6 +66,9 @@ class WC_RSRGroup {
 			add_action( 'init', array( $this, 'load_textdomain' ) );
 			add_action( 'init', array( $this, 'load_custom_fields' ) );
 
+			// filter for s3 images
+			add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url'), 10, 2 );
+
 			add_action( 'woocommerce_rsrgroup_import_inventory', array( $this, 'import_inventory' ) );
 
 			// WooCommerce actions
@@ -62,18 +76,30 @@ class WC_RSRGroup {
 			add_action( 'woocommerce_product_options_sku', array( $this, 'product_options_sku' ) );
 			add_action( 'woocommerce_process_product_meta_simple', array( $this, 'process_product_meta' ) );
 
-
-
 			// TODO: remove manually call woocommerce_rsrgroup_import_inventory action after dev
-			do_action( 'woocommerce_rsrgroup_import_inventory' );
+			// do_action( 'woocommerce_rsrgroup_import_inventory' );
 		}
 
 	}
 
 	/**
+	 * wp_get_attachment_url if it is an rsrgroup image attachment we assume it's hosted on AWS S3
+	 * 
+	 * @param  string $url
+	 * @param  int $attachment_id
+	 * @return string $url
+	 */
+	public function wp_get_attachment_url( $url, $attachment_id ){
+		if( get_post_meta( $attachment_id, '_rsrgroup_media', true ) ) {
+			$url = get_post_meta( $attachment_id, '_wp_attached_file', true );
+		}
+		return $url;
+	}
+
+	/**
 	 * product_options_sku adds a UPC and Part # field for RSR Group
 	 *
-	 * @return [type] [description]
+	 * @return void
 	 */
 	function product_options_sku() {
 		woocommerce_wp_text_input( array( 'id' => '_rsrgroup_upc', 'label' => '<abbr title="'. __( 'UPC', 'woocommerce_rsrgroup' ) .'">' . __( 'RSR UPC', 'woocommerce_rsrgroup' ) . '</abbr>', 'desc_tip' => 'true' ) );
@@ -111,62 +137,12 @@ class WC_RSRGroup {
 	}
 
 	public function import_inventory() {
-
-		// get local dir properties
-		$wp_upload_dir = wp_upload_dir();
-		$inventory_file = array();
-
-		if ( !function_exists( 'download_url' ) )
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-
 		global $wp_filesystem, $woocommerce, $wpdb;
-		WP_Filesystem();
 
-		// download remove archived inventory csv
-		$tmp_remote_inventory = download_url( $this->rsrgroup->settings['remote_inventory'] );
+		$wp_upload_dir = wp_upload_dir();
+		$inventory_file = $this->remote_inventory_request();
 
-		// regex match file type from the remote request url
-		preg_match( '/[^\?]+\.(zip|ZIP|txt|TXT)/', $this->rsrgroup->settings['remote_inventory'], $file_check );
-
-		// check if the file type is compatible
-		if ( empty( $file_check[1] ) && ! in_array( strtolower( $file_check[1] ) , array( 'zip', 'txt' ) ) ) {
-			return new WP_Error( 'incompatible_archive', __( 'Incompatible inventory file type.', 'woocommerce_rsrgroup' ) );
-		} else {
-			$inventory_file['name'] = basename( $file_check[0] );
-			$inventory_file['type'] = $file_check[1];
-			$inventory_file['path_file'] = trailingslashit( $wp_upload_dir['path'] ) . $inventory_file['name'];
-		}
-
-		// store the temp file path in array
-		if ( is_wp_error( $tmp_remote_inventory ) ) {
-			@unlink( $tmp_remote_inventory );
-			return new WP_Error( 'archive_storage_error', __( 'There was an issue storing the temporary file to import.', 'woocommerce_rsrgroup' ) );
-		} else {
-			$inventory_file['tmp_file'] = $tmp_remote_inventory;
-		}
-
-		// merge current inventory file arrays with filetype + ext check
-		$inventory_file = array_merge( $inventory_file, wp_check_filetype_and_ext( $inventory_file['tmp_file'], $inventory_file['name'] ) );
-
-		// unarchive the inventory file if needed
-		if ( $inventory_file['ext'] == 'zip' && unzip_file( $inventory_file['tmp_file'], $wp_upload_dir['path'] ) ) {
-
-			// remove the tmp file upon successful unarchive
-			@unlink( $inventory_file['tmp_file'] );
-			$inventory_file['tmp_file'] = '';
-
-			// we assume the text file will be the same name as the archive given the RSRGroup.com data consistency (to date)
-			$inventory_file['name'] = str_replace( '.zip', '.txt', $inventory_file['name'] );
-
-			// reset the path to the file for use during parse
-			$inventory_file['path_file'] = trailingslashit( $wp_upload_dir['path'] ) . $inventory_file['name'];
-
-			// skip erroring if direct txt file is retrieved
-		} else if ( $inventory_file['ext'] == 'zip' ) {
-				return new WP_Error( 'unarchive_error', __( 'There was an issue extracting the inventory to import.', 'woocommerce_rsrgroup' ) );
-			}
-
-		// WARNING: this next step could use a chunk of memory if your server throttles
+		// WARNING: this next step could use a chunk of memory in case your server throttles
 
 		// retrieve the raw data from the file
 		$inventory_data = $wp_filesystem->get_contents( $inventory_file['path_file'] );
@@ -175,7 +151,7 @@ class WC_RSRGroup {
 		$inventory_rows = explode( "\n", $inventory_data );
 
 		foreach ($inventory_rows as $row) {
-			// see rsr_inventory_file_layout.txt for specifics
+			// see rsr_inventory_file_layout.txt for specifics to var + position
 			list( $sku, 
 				  $upc, 
 				  $title, 
@@ -190,11 +166,14 @@ class WC_RSRGroup {
 				  $manufacturer_part_num, 
 				  $status, 
 				  $description, 
-				  $image ) = str_getcsv( $inventory_rows[0], ';', '', '' );
+				  $image_file ) = str_getcsv( $inventory_rows[0], ';', '', '' );
 
 			$sku = trim( strtoupper( $sku ) );
+			$image_file = trim( strtoupper( $image_file ) );
 
-			$product_id = $wpdb->get_col( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_sku' AND meta_value = '{$sku}';" );
+			$remote_image = $this->remote_media_file( $image_file );
+
+			$product_id = $wpdb->get_col( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_sku' AND meta_value = '{$sku}' LIMIT 1;" );
 
 			if( empty( $product_id )) {
 
@@ -224,9 +203,14 @@ class WC_RSRGroup {
 				// insert the product into the database
 				$product_id = wp_insert_post( $import_product );
 
+			} else {
+				$product_id = $product_id[0];
 			}
 
 			if( !empty( $product_id )) {
+
+				$attach_id = $this->import_image( $remote_image, $product_id, $title );
+
 				// only needed for new product imports
 				add_post_meta( $product_id, '_visibility', 'visible', true );
 				add_post_meta( $product_id, '_regular_price', $regular_price, true );
@@ -241,8 +225,127 @@ class WC_RSRGroup {
 				update_post_meta( $product_id, '_rsrgroup_upc', $upc );
 				update_post_meta( $product_id, '_rsrgroup_manufacturer_part_num', $manufacturer_part_num );
 			}
-			break;
+
 		}
+	}
+
+	function import_image( $image, $post_id, $title = '' ){
+		global $wpdb;
+
+		$attachment_id = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_parent = '{$post_id}';" );
+		$full_path = trailingslashit( $image['path'] ) . $image['name'];
+		$title = empty($title) ? $image['name'] : $title;
+
+		if( empty( $attachment_id ) ) {
+
+			$attachment = array(
+				'guid' => $full_path, 
+				'post_mime_type' => $image['type'],
+				'post_title' => $title,
+				'post_content' => '',
+				'post_status' => 'inherit'
+				);
+			$attachment_id = wp_insert_attachment( $attachment, $full_path, $post_id );
+
+		} else {
+			$attachment_id = $attachment_id[0];
+		}
+
+		set_post_thumbnail( $post_id, $attachment_id );
+
+		$tmp_image = $this->get_file( $full_path );
+
+		// attach metadata for attachment
+		if( !function_exists('wp_generate_attachment_metadata'))
+			require_once( ABSPATH . 'wp-admin/includes/image.php');
+		$attachment_data = wp_generate_attachment_metadata( $attachment_id, $full_path );
+		wp_update_attachment_metadata( $attachment_id, $attachment_data );
+
+		// set key to flag as custom media hosted on s3
+		update_post_meta( $attachment_id, '_rsrgroup_media', true );
+
+		return $attachment_id;
+	}
+
+	function remote_media_file( $image_file ){
+		// S3 and some linux installs choke on capitalized filenames
+		$image_file = str_replace('.JPG', '.jpg', $image_file );
+
+		// set encoded # for digit folders
+		$folder = ctype_digit( $image_file[0] ) ? '%23' : strtoupper( $image_file[0] );
+
+		$image['path'] = trailingslashit( $this->rsrgroup->settings['cloudfront'] ) . $folder;
+		$image['name'] = $image_file;
+		$image = array_merge( $image, wp_check_filetype_and_ext( trailingslashit( $image['path'] ) . $image['name'], $image['name'] ) );
+
+		return $image;
+	}
+
+	function get_file( $remote_file, $type = 'image' ){
+		global $wp_filesystem;
+
+		// get local dir properties
+		$wp_upload_dir = wp_upload_dir();
+		$inventory_file = array();
+
+		// download remove archived inventory csv
+		$tmp_remote_inventory = download_url( $remote_file );
+
+		// regex match file type from the remote request url
+		preg_match( $this->file_check_pattern[ $type ], $remote_file, $file_check );
+
+		// check if the file type is compatible
+		if ( empty( $file_check[1] ) && ! in_array( strtolower( $file_check[1] ) , array( 'zip', 'txt' ) ) ) {
+			return new WP_Error( 'incompatible_archive', __( 'Incompatible inventory file type.', 'woocommerce_rsrgroup' ) );
+		} else {
+			$inventory_file['name'] = basename( $file_check[0] );
+			$inventory_file['type'] = $file_check[1];
+			$inventory_file['path_file'] = trailingslashit( $wp_upload_dir['path'] ) . $inventory_file['name'];
+		}
+
+		// store the temp file path in array
+		if ( is_wp_error( $tmp_remote_inventory ) ) {
+			@unlink( $tmp_remote_inventory );
+			return new WP_Error( 'archive_storage_error', __( 'There was an issue storing the temporary file to import.', 'woocommerce_rsrgroup' ) );
+		} else {
+			$inventory_file['tmp_file'] = $tmp_remote_inventory;
+		}
+		return $inventory_file;
+	}
+
+	function remote_inventory_request(){
+		global $wp_filesystem;
+
+		// get local dir properties
+		$wp_upload_dir = wp_upload_dir();
+
+		$inventory_file = $this->get_file( $this->rsrgroup->settings['remote_inventory'], 'archive' );
+
+		// merge current inventory file arrays with filetype + ext check
+		$inventory_file = array_merge( $inventory_file, wp_check_filetype_and_ext( $inventory_file['tmp_file'], $inventory_file['name'] ) );
+
+		// unarchive the inventory file if needed
+		if ( $inventory_file['ext'] == 'zip' && unzip_file( $inventory_file['tmp_file'], $wp_upload_dir['path'] ) ) {
+
+			// remove the tmp file upon successful unarchive
+			@unlink( $inventory_file['tmp_file'] );
+			$inventory_file['tmp_file'] = '';
+
+			// we assume the text file will be the same name as the archive given the RSRGroup.com data consistency (to date)
+			$inventory_file['name'] = str_replace( '.zip', '.txt', $inventory_file['name'] );
+
+			// reset the path to the file for use during parse
+			$inventory_file['path_file'] = trailingslashit( $wp_upload_dir['path'] ) . $inventory_file['name'];
+
+			// merge current inventory file arrays with filetype + ext check
+			$inventory_file = array_merge( $inventory_file, wp_check_filetype_and_ext( $inventory_file['path_file'], $inventory_file['name'] ) );
+
+			// skip erroring if direct txt file is retrieved
+		} else if ( $inventory_file['ext'] == 'zip' ) {
+			return new WP_Error( 'unarchive_error', __( 'There was an issue extracting the inventory to import.', 'woocommerce_rsrgroup' ) );
+		}
+
+		return $inventory_file;
 	}
 
 	/**
