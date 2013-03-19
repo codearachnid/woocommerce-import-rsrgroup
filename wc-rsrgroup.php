@@ -67,7 +67,7 @@ class WC_RSRGroup {
 			add_action( 'init', array( $this, 'load_custom_fields' ) );
 
 			// filter for s3 images
-			add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url'), 10, 2 );
+			add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url' ), 10, 2 );
 
 			add_action( 'woocommerce_rsrgroup_import_inventory', array( $this, 'import_inventory' ) );
 
@@ -84,13 +84,13 @@ class WC_RSRGroup {
 
 	/**
 	 * wp_get_attachment_url if it is an rsrgroup image attachment we assume it's hosted on AWS S3
-	 * 
-	 * @param  string $url
-	 * @param  int $attachment_id
+	 *
+	 * @param string  $url
+	 * @param int     $attachment_id
 	 * @return string $url
 	 */
-	public function wp_get_attachment_url( $url, $attachment_id ){
-		if( get_post_meta( $attachment_id, '_rsrgroup_media', true ) ) {
+	public function wp_get_attachment_url( $url, $attachment_id ) {
+		if ( get_post_meta( $attachment_id, '_rsrgroup_media', true ) ) {
 			$url = get_post_meta( $attachment_id, '_wp_attached_file', true );
 		}
 		return $url;
@@ -150,23 +150,23 @@ class WC_RSRGroup {
 		// split out new rows
 		$inventory_rows = explode( "\n", $inventory_data );
 
-		foreach ($inventory_rows as $row) {
+		foreach ( $inventory_rows as $row ) {
 			// see rsr_inventory_file_layout.txt for specifics to var + position
-			list( $sku, 
-				  $upc, 
-				  $title, 
-				  $rsrgroup_cat_id, 
-				  $manufacturer_id, 
-				  $regular_price, 
-				  $rsrgroup_price, 
-				  $weight, 
-				  $inventory, 
-				  $tag, 
-				  $manufacturer_name, 
-				  $manufacturer_part_num, 
-				  $status, 
-				  $description, 
-				  $image_file ) = str_getcsv( $inventory_rows[0], ';', '', '' );
+			list( $sku,
+				$upc,
+				$title,
+				$rsrgroup_cat_id,
+				$manufacturer_id,
+				$regular_price,
+				$rsrgroup_price,
+				$weight,
+				$inventory,
+				$tag,
+				$manufacturer_name,
+				$manufacturer_part_num,
+				$status,
+				$description,
+				$image_file ) = str_getcsv( $inventory_rows[0], ';', '', '' );
 
 			$sku = trim( strtoupper( $sku ) );
 			$image_file = trim( strtoupper( $image_file ) );
@@ -175,21 +175,21 @@ class WC_RSRGroup {
 
 			$product_id = $wpdb->get_col( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_sku' AND meta_value = '{$sku}' LIMIT 1;" );
 
-			if( empty( $product_id )) {
+			if ( empty( $product_id ) ) {
 
-				switch( strtolower($status) ){
-					case 'allocated':
-						$status = 'pending';
-						break;
-					case 'deleted':
-						$status = 'publish';
-						break;
-					case 'closeout':
-					default :
-						$status = 'publish';
-						break;
+				switch ( strtolower( $status ) ) {
+				case 'allocated':
+					$status = 'pending';
+					break;
+				case 'deleted':
+					$status = 'publish';
+					break;
+				case 'closeout':
+				default :
+					$status = 'publish';
+					break;
 				}
-				
+
 				// Create post object
 				$import_product = array(
 					'post_type' => 'product',
@@ -198,7 +198,7 @@ class WC_RSRGroup {
 					'post_content' => $description,
 					'post_status' => $status,
 					'tax_input' => array( 'product_tag' => array( $tag ) )
-					);
+				);
 
 				// insert the product into the database
 				$product_id = wp_insert_post( $import_product );
@@ -207,14 +207,14 @@ class WC_RSRGroup {
 				$product_id = $product_id[0];
 			}
 
-			if( !empty( $product_id )) {
+			if ( !empty( $product_id ) ) {
 
 				$attach_id = $this->import_image( $remote_image, $product_id, $title );
 
 				// only needed for new product imports
 				add_post_meta( $product_id, '_visibility', 'visible', true );
 				add_post_meta( $product_id, '_regular_price', $regular_price, true );
-				add_post_meta( $product_id, '_price', $regular_price, true);
+				add_post_meta( $product_id, '_price', $regular_price, true );
 
 				// on reimport update product attributes
 				update_post_meta( $product_id, '_stock_status', 'instock' );
@@ -229,22 +229,22 @@ class WC_RSRGroup {
 		}
 	}
 
-	function import_image( $image, $post_id, $title = '' ){
+	function import_image( $image, $post_id, $title = '' ) {
 		global $wpdb;
 
 		$attachment_id = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_parent = '{$post_id}';" );
 		$full_path = trailingslashit( $image['path'] ) . $image['name'];
-		$title = empty($title) ? $image['name'] : $title;
+		$title = empty( $title ) ? $image['name'] : $title;
 
-		if( empty( $attachment_id ) ) {
+		if ( empty( $attachment_id ) ) {
 
 			$attachment = array(
-				'guid' => $full_path, 
+				'guid' => $full_path,
 				'post_mime_type' => $image['type'],
 				'post_title' => $title,
 				'post_content' => '',
 				'post_status' => 'inherit'
-				);
+			);
 			$attachment_id = wp_insert_attachment( $attachment, $full_path, $post_id );
 
 		} else {
@@ -256,8 +256,8 @@ class WC_RSRGroup {
 		$tmp_image = $this->get_file( $full_path );
 
 		// attach metadata for attachment
-		if( !function_exists('wp_generate_attachment_metadata'))
-			require_once( ABSPATH . 'wp-admin/includes/image.php');
+		if ( !function_exists( 'wp_generate_attachment_metadata' ) )
+			require_once ABSPATH . 'wp-admin/includes/image.php';
 		$attachment_data = wp_generate_attachment_metadata( $attachment_id, $full_path );
 		wp_update_attachment_metadata( $attachment_id, $attachment_data );
 
@@ -267,9 +267,9 @@ class WC_RSRGroup {
 		return $attachment_id;
 	}
 
-	function remote_media_file( $image_file ){
+	function remote_media_file( $image_file ) {
 		// S3 and some linux installs choke on capitalized filenames
-		$image_file = str_replace('.JPG', '.jpg', $image_file );
+		$image_file = str_replace( '.JPG', '.jpg', $image_file );
 
 		// set encoded # for digit folders
 		$folder = ctype_digit( $image_file[0] ) ? '%23' : strtoupper( $image_file[0] );
@@ -281,7 +281,7 @@ class WC_RSRGroup {
 		return $image;
 	}
 
-	function get_file( $remote_file, $type = 'image' ){
+	function get_file( $remote_file, $type = 'image' ) {
 		global $wp_filesystem;
 
 		// get local dir properties
@@ -313,7 +313,7 @@ class WC_RSRGroup {
 		return $inventory_file;
 	}
 
-	function remote_inventory_request(){
+	function remote_inventory_request() {
 		global $wp_filesystem;
 
 		// get local dir properties
@@ -342,8 +342,8 @@ class WC_RSRGroup {
 
 			// skip erroring if direct txt file is retrieved
 		} else if ( $inventory_file['ext'] == 'zip' ) {
-			return new WP_Error( 'unarchive_error', __( 'There was an issue extracting the inventory to import.', 'woocommerce_rsrgroup' ) );
-		}
+				return new WP_Error( 'unarchive_error', __( 'There was an issue extracting the inventory to import.', 'woocommerce_rsrgroup' ) );
+			}
 
 		return $inventory_file;
 	}
@@ -362,13 +362,74 @@ class WC_RSRGroup {
 		 */
 
 		if ( function_exists( "register_field_group" ) ) {
-			register_field_group( array (
-					'id' => '514676fbe917e',
+			register_field_group( array(
+					'id' => '5148745a32ec5',
+					'title' => 'RSRGroup Brands Fields',
+					'fields' =>
+					array(
+						0 =>
+						array(
+							'key' => 'field_2',
+							'label' => 'RSR Group Brand',
+							'name' => 'rsrgroup_brand_id',
+							'type' => 'select',
+							'order_no' => 0,
+							'instructions' => 'Select a RSR Group manufacture to associate during import.',
+							'required' => 0,
+							'conditional_logic' =>
+							array(
+								'status' => 0,
+								'rules' =>
+								array(
+									0 =>
+									array(
+										'field' => 'field_2',
+										'operator' => '==',
+										'value' => '',
+									),
+								),
+								'allorany' => 'all',
+							),
+							'choices' =>
+							array(
+								511 => '5.11 Tactical',
+							),
+							'default_value' => '',
+							'allow_null' => 1,
+							'multiple' => 0,
+						),
+					),
+					'location' =>
+					array(
+						'rules' =>
+						array(
+							0 =>
+							array(
+								'param' => 'ef_taxonomy',
+								'operator' => '==',
+								'value' => 'product_brand',
+								'order_no' => 0,
+							),
+						),
+						'allorany' => 'all',
+					),
+					'options' =>
+					array(
+						'position' => 'normal',
+						'layout' => 'no_box',
+						'hide_on_screen' =>
+						array(
+						),
+					),
+					'menu_order' => 0,
+				) );
+			register_field_group( array(
+					'id' => '5148745a338d0',
 					'title' => 'RSRGroup Category Fields',
 					'fields' =>
-					array (
+					array(
 						0 =>
-						array (
+						array(
 							'key' => 'field_1',
 							'label' => 'RSR Group Category',
 							'name' => 'rsrgroup_cat_id',
@@ -377,12 +438,12 @@ class WC_RSRGroup {
 							'instructions' => 'Select a RSR Group category to associate during import.',
 							'required' => 0,
 							'conditional_logic' =>
-							array (
+							array(
 								'status' => 0,
 								'rules' =>
-								array (
+								array(
 									0 =>
-									array (
+									array(
 										'field' => 'field_1',
 										'operator' => '==',
 										'value' => 1,
@@ -391,7 +452,7 @@ class WC_RSRGroup {
 								'allorany' => 'all',
 							),
 							'choices' =>
-							array (
+							array(
 								1 => 'Handguns',
 								2 => 'Used Handguns',
 								3 => 'Used Long Guns',
@@ -442,30 +503,31 @@ class WC_RSRGroup {
 						),
 					),
 					'location' =>
-					array (
+					array(
 						'rules' =>
-						array (
+						array(
 							0 =>
-							array (
+							array(
 								'param' => 'ef_taxonomy',
 								'operator' => '==',
-								'value' => 'all',
+								'value' => 'product_cat',
 								'order_no' => 0,
 							),
 						),
 						'allorany' => 'all',
 					),
 					'options' =>
-					array (
+					array(
 						'position' => 'normal',
 						'layout' => 'no_box',
 						'hide_on_screen' =>
-						array (
+						array(
 						),
 					),
 					'menu_order' => 0,
 				) );
 		}
+
 
 	}
 
