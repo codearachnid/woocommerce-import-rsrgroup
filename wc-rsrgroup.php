@@ -261,8 +261,6 @@ class WC_RSRGroup {
 
 		set_post_thumbnail( $post_id, $attachment_id );
 
-		$tmp_image = $this->get_file( $full_path );
-
 		// attach metadata for attachment
 		if ( !function_exists( 'wp_generate_attachment_metadata' ) )
 			require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -289,7 +287,7 @@ class WC_RSRGroup {
 		return $image;
 	}
 
-	function get_file( $remote_file, $type = 'image' ) {
+	function get_file( $remote_file, $type = 'archive' ) {
 		global $wp_filesystem;
 
 		// get local dir properties
@@ -327,7 +325,7 @@ class WC_RSRGroup {
 		// get local dir properties
 		$wp_upload_dir = wp_upload_dir();
 
-		$inventory_file = $this->get_file( $this->rsrgroup->settings['remote_inventory'], 'archive' );
+		$inventory_file = $this->get_file( $this->rsrgroup->settings['remote_inventory'] );
 
 		// merge current inventory file arrays with filetype + ext check
 		$inventory_file = array_merge( $inventory_file, wp_check_filetype_and_ext( $inventory_file['tmp_file'], $inventory_file['name'] ) );
