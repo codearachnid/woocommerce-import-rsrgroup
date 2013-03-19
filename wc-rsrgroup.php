@@ -46,7 +46,7 @@ class WC_RSRGroup {
 
 		// filter for s3 images
 		add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url' ), 10, 2 );
-		add_filter( 'image_downsize', array( $this, 'image_downsize'), 10, 2);
+		add_filter( 'image_downsize', array( $this, 'image_downsize' ), 10, 2 );
 
 		// admin only functionality
 		if ( is_admin() ) {
@@ -57,7 +57,7 @@ class WC_RSRGroup {
 
 			global $wp_filesystem;
 			WP_Filesystem();
-			
+
 			// enable the settings
 			$this->rsrgroup = new WC_RSRGroup_Integration();
 
@@ -71,7 +71,7 @@ class WC_RSRGroup {
 			add_action( 'init', array( $this, 'load_textdomain' ) );
 			add_action( 'init', array( $this, 'load_custom_fields' ) );
 
-			add_action('admin_menu', array( $this, 'admin_menu') );
+			add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 			add_filter( 'manage_upload_columns', array( $this, 'manage_upload_columns' ) );
 			add_action( 'manage_media_custom_column', array( $this, 'manage_media_custom_column' ), 10, 2 );
 
@@ -87,32 +87,32 @@ class WC_RSRGroup {
 	}
 
 	function manage_upload_columns( $columns ) {
-		$columns['rsrgroup'] = 'RSR Image';    
+		$columns['rsrgroup'] = 'RSR Image';
 		return $columns;
 	}
 
 	function manage_media_custom_column( $column_name, $post_id ) {
-		if( 'rsrgroup' != $column_name || !wp_attachment_is_image( $post_id ) )
+		if ( 'rsrgroup' != $column_name || !wp_attachment_is_image( $post_id ) )
 			return;
 
 		$_rsrgroup_media = get_post_meta( $post_id, '_rsrgroup_media', true );
-		
+
 		echo $_rsrgroup_media ? 'Yes' : 'No';
 	}
 
-	function manual_import(){
+	function manual_import() {
 		do_action( 'woocommerce_rsrgroup_import_inventory' );
 		include 'views/manual-import.php';
 	}
 
-	function admin_menu(){
-		add_submenu_page( 'woocommerce', __('RSR Group Manual Import'), __('RSR Group Import'), 'manage_woocommerce', 'woocommerce_rsrgroup', array( $this, 'manual_import' ));
+	function admin_menu() {
+		add_submenu_page( 'woocommerce', __( 'RSR Group Manual Import' ), __( 'RSR Group Import' ), 'manage_woocommerce', 'woocommerce_rsrgroup', array( $this, 'manual_import' ) );
 	}
 
 	/**
 	 * wp_get_attachment_url if it is an rsrgroup image attachment we assume it's hosted on AWS S3
 	 * so link to the image by _wp_attached_file
-	 * 
+	 *
 	 * @param string  $url
 	 * @param int     $attachment_id
 	 * @return string $url
@@ -127,7 +127,7 @@ class WC_RSRGroup {
 	/**
 	 * image_downsize if it is an rsrgroup image attachment we assume it's hosted on AWS S3,
 	 * cue taken from image_downsize for getting image size
-	 * 
+	 *
 	 * @param string  $image
 	 * @param int     $attachment_id
 	 * @return string $url
@@ -137,9 +137,9 @@ class WC_RSRGroup {
 			$img_url = get_post_meta( $attachment_id, '_wp_attached_file', true );
 
 			// cue taken from image_downsize for getting image size
-			$meta = wp_get_attachment_metadata($attachment_id);
-			$width = !empty($meta['width']) ? $meta['width']: null;
-			$height = !empty($meta['height']) ? $meta['height']: null;
+			$meta = wp_get_attachment_metadata( $attachment_id );
+			$width = !empty( $meta['width'] ) ? $meta['width']: null;
+			$height = !empty( $meta['height'] ) ? $meta['height']: null;
 			$image = array( $img_url, $width, $height );
 		}
 		return $image;
@@ -199,7 +199,7 @@ class WC_RSRGroup {
 		// split out new rows
 		$inventory_rows = explode( "\n", $inventory_data );
 
-		foreach ( new LimitIterator( new ArrayIterator($inventory_rows), 4300) as $key => $row ) {
+		foreach ( new LimitIterator( new ArrayIterator( $inventory_rows ), 4300 ) as $key => $row ) {
 			// see rsr_inventory_file_layout.txt for specifics to var + position
 			list( $sku,
 				$upc,
@@ -225,16 +225,16 @@ class WC_RSRGroup {
 			if ( empty( $product_id ) ) {
 
 				switch ( strtolower( $status ) ) {
-					case 'allocated':
-						$status = 'pending';
-						break;
-					case 'deleted':
-						$status = 'publish';
-						break;
-					case 'closeout':
-					default :
-						$status = 'publish';
-						break;
+				case 'allocated':
+					$status = 'pending';
+					break;
+				case 'deleted':
+					$status = 'publish';
+					break;
+				case 'closeout':
+				default :
+					$status = 'publish';
+					break;
 				}
 
 				// Create post object
@@ -255,9 +255,9 @@ class WC_RSRGroup {
 				add_post_meta( $product_id, '_regular_price', $regular_price, true );
 				add_post_meta( $product_id, '_price', $regular_price, true );
 
-			} else if( $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
-				$product_id = $product_id[0];
-			}
+			} else if ( $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
+					$product_id = $product_id[0];
+				}
 
 			if ( !empty( $product_id ) && $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
 
