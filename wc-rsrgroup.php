@@ -57,7 +57,8 @@ class WC_RSRGroup {
 			// enable the settings
 			$this->rsrgroup = new WC_RSRGroup_Integration();
 
-			$this->plugin_data = get_plugin_data( __FILE__ );
+			// TODO: fix " Call to undefined function get_plugin_data() "
+			// $this->plugin_data = get_plugin_data( __FILE__ );
 
 			$this->path = self::get_plugin_path();
 			$this->dir = trailingslashit( basename( $this->path ) );
@@ -69,6 +70,8 @@ class WC_RSRGroup {
 			// filter for s3 images
 			add_filter( 'wp_get_attachment_url', array( $this, 'wp_get_attachment_url' ), 10, 2 );
 
+			add_action('admin_menu', array( $this, 'admin_menu') );
+
 			add_action( 'woocommerce_rsrgroup_import_inventory', array( $this, 'import_inventory' ) );
 
 			// WooCommerce actions
@@ -76,10 +79,17 @@ class WC_RSRGroup {
 			add_action( 'woocommerce_product_options_sku', array( $this, 'product_options_sku' ) );
 			add_action( 'woocommerce_process_product_meta_simple', array( $this, 'process_product_meta' ) );
 
-			// TODO: remove manually call woocommerce_rsrgroup_import_inventory action after dev
-			// do_action( 'woocommerce_rsrgroup_import_inventory' );
 		}
 
+	}
+
+	function manual_import(){
+		do_action( 'woocommerce_rsrgroup_import_inventory' );
+		include 'views/manual-import.php';
+	}
+
+	function admin_menu(){
+		add_submenu_page( 'woocommerce', __('RSR Group Manual Import'), __('RSR Group Import'), 'manage_woocommerce', 'woocommerce_rsrgroup', array( $this, 'manual_import' ));
 	}
 
 	/**
@@ -166,28 +176,26 @@ class WC_RSRGroup {
 				$manufacturer_part_num,
 				$status,
 				$description,
-				$image_file ) = str_getcsv( $inventory_rows[0], ';', '', '' );
+				$image_file ) = str_getcsv( $row, ';', '', '' );
 
 			$sku = trim( strtoupper( $sku ) );
 			$image_file = trim( strtoupper( $image_file ) );
-
-			$remote_image = $this->remote_media_file( $image_file );
 
 			$product_id = $wpdb->get_col( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_sku' AND meta_value = '{$sku}' LIMIT 1;" );
 
 			if ( empty( $product_id ) ) {
 
 				switch ( strtolower( $status ) ) {
-				case 'allocated':
-					$status = 'pending';
-					break;
-				case 'deleted':
-					$status = 'publish';
-					break;
-				case 'closeout':
-				default :
-					$status = 'publish';
-					break;
+					case 'allocated':
+						$status = 'pending';
+						break;
+					case 'deleted':
+						$status = 'publish';
+						break;
+					case 'closeout':
+					default :
+						$status = 'publish';
+						break;
 				}
 
 				// Create post object
@@ -207,9 +215,12 @@ class WC_RSRGroup {
 				$product_id = $product_id[0];
 			}
 
+			echo $title . '<br />';
+
 			if ( !empty( $product_id ) ) {
 
-				$attach_id = $this->import_image( $remote_image, $product_id, $title );
+				// $remote_image = $this->remote_media_file( $image_file );
+				// $attach_id = $this->import_image( $remote_image, $product_id, $title );
 
 				// only needed for new product imports
 				add_post_meta( $product_id, '_visibility', 'visible', true );
@@ -225,6 +236,10 @@ class WC_RSRGroup {
 				update_post_meta( $product_id, '_rsrgroup_upc', $upc );
 				update_post_meta( $product_id, '_rsrgroup_manufacturer_part_num', $manufacturer_part_num );
 			}
+
+			echo '<hr />';
+
+			break;
 
 		}
 	}
