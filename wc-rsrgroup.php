@@ -219,7 +219,17 @@ class WC_RSRGroup {
 		// split out new rows
 		$inventory_rows = explode( "\n", $inventory_data );
 
-		foreach ( new LimitIterator( new ArrayIterator( $inventory_rows ), 4300 ) as $key => $row ) {
+		$offset_row = !empty($this->rsrgroup->settings['offset_row']) && $this->rsrgroup->settings['offset_row'] > 0 ? $this->rsrgroup->settings['offset_row'] - 1 : 0;
+		$remaining_rows = !empty($this->rsrgroup->settings['remaining_rows']) && $this->rsrgroup->settings['remaining_rows'] > 0 ? $this->rsrgroup->settings['remaining_rows'] : -1;
+
+		foreach ( new LimitIterator( new ArrayIterator( $inventory_rows ), $offset_row, $remaining_rows ) as $key => $row ) {
+
+			$row = trim($row);
+
+			// skip if empty
+			if ( empty($row) )
+				continue;
+
 			// see rsr_inventory_file_layout.txt for specifics to var + position
 			list( $sku,
 				$upc,
@@ -333,13 +343,18 @@ class WC_RSRGroup {
 	}
 
 	function remote_media_file( $image_file ) {
-		// S3 and some linux installs choke on capitalized filenames
-		$image_file = str_replace( '.JPG', '.jpg', $image_file );
 
-		// set encoded # for digit folders
-		$folder = ctype_digit( $image_file[0] ) ? '%23' : strtoupper( $image_file[0] );
+		$domain = trailingslashit( $this->rsrgroup->settings['cloudfront'] );
+		$folder = '';
 
-		$image['path'] = trailingslashit( $this->rsrgroup->settings['cloudfront'] ) . $folder;
+		if( !empty($image_file)) {
+			// S3 and some linux installs choke on capitalized filenames
+			$image_file = str_replace( '.JPG', '.jpg', $image_file );
+			// set encoded # for digit folders
+			$folder = ctype_digit( $image_file[0] ) ? '%23' : strtoupper( $image_file[0] );
+		}
+
+		$image['path'] = $domain . $folder;
 		$image['name'] = $image_file;
 		$image = array_merge( $image, wp_check_filetype_and_ext( trailingslashit( $image['path'] ) . $image['name'], $image['name'] ) );
 
