@@ -86,11 +86,22 @@ class WC_RSRGroup {
 
 	}
 
+	/**
+	 * manage_upload_columns sets the column name for media lists
+	 * @param  array $columns
+	 * @return array $columns
+	 */
 	function manage_upload_columns( $columns ) {
 		$columns['rsrgroup'] = 'RSR Image';
 		return $columns;
 	}
 
+	/**
+	 * manage_media_custom_column checks to see if media attachment is considered to be a rsr group item
+	 * @param  string $column_name
+	 * @param  int | obj $post_id
+	 * @return void
+	 */
 	function manage_media_custom_column( $column_name, $post_id ) {
 		if ( 'rsrgroup' != $column_name || !wp_attachment_is_image( $post_id ) )
 			return;
@@ -100,11 +111,20 @@ class WC_RSRGroup {
 		echo $_rsrgroup_media ? 'Yes' : 'No';
 	}
 
+	/**
+	 * manual_import manual import view for manual importing
+	 * @return void
+	 */
 	function manual_import() {
 		do_action( 'woocommerce_rsrgroup_import_inventory' );
 		include 'views/manual-import.php';
 	}
 
+	/**
+	 * admin_menu setup link to manual import page
+	 * @uses add_submenu_page
+	 * @return void
+	 */
 	function admin_menu() {
 		add_submenu_page( 'woocommerce', __( 'RSR Group Manual Import' ), __( 'RSR Group Import' ), 'manage_woocommerce', 'woocommerce_rsrgroup', array( $this, 'manual_import' ) );
 	}
