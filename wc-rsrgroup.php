@@ -234,7 +234,7 @@ class WC_RSRGroup {
 			list( $sku,
 				$upc,
 				$title,
-				$rsrgroup_cat_id,
+				$cat_id,
 				$manufacturer_id,
 				$regular_price,
 				$rsrgroup_price,
@@ -274,7 +274,9 @@ class WC_RSRGroup {
 					'post_title' => $title,
 					'post_content' => $description,
 					'post_status' => $status,
-					'tax_input' => array( 'product_tag' => array( $tag ) )
+					'tax_input' => array( 
+						'product_tag' => array( $tag )
+						)
 				);
 
 				// insert the product into the database
@@ -285,11 +287,32 @@ class WC_RSRGroup {
 				add_post_meta( $product_id, '_regular_price', $regular_price, true );
 				add_post_meta( $product_id, '_price', $regular_price, true );
 
-			} else if ( $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
+			} else if ( $this->rsrgroup->settings['only_new'] != 'yes' ) {
 					$product_id = $product_id[0];
 				}
 
-			if ( !empty( $product_id ) && $this->rsrgroup->settings['cloudfront'] != 'yes' ) {
+			if ( !empty( $product_id ) && $this->rsrgroup->settings['only_new'] != 'yes' ) {
+
+				$taxonomy_relationship = array(
+					array(
+						'term_id' => $cat_id,
+						'tax' => 'product_cat',
+						'field' => 'rsrgroup_cat_id'
+						),
+					array(
+						'term_id' => $manufacturer_id,
+						'tax' => 'product_brand',
+						'field' => 'rsrgroup_brand_id'
+						)
+					);
+
+				foreach( $taxonomy_relationship as $relationship ){
+					$relationship_term_id = $wpdb->get_col( "SELECT option_name from $wpdb->options where option_name like '{$relationship['tax']}_%_{$relationship['field']}' AND option_value = '{$relationship['term_id']}';" );	
+					$relationship_term_id = $this->clean_option_term_id( $relationship_term_id, $relationship['tax'], $relationship['field']);
+					if( empty($relationship_term_id) )
+						continue;
+					wp_set_post_terms( $product_id, $relationship_term_id, $relationship['tax'], true );
+				}
 
 				$remote_image = $this->remote_media_file( $image_file );
 				$attach_id = $this->import_image( $remote_image, $product_id, $title );
@@ -304,6 +327,16 @@ class WC_RSRGroup {
 				update_post_meta( $product_id, '_rsrgroup_manufacturer_part_num', $manufacturer_part_num );
 			}
 		}
+	}
+
+	function clean_option_term_id( $terms, $tax, $field ){
+		$cleaned_term_ids = array();
+		if( !empty( $terms )){
+			foreach( $terms as $term ){
+				$cleaned_term_ids[] = str_replace( '_' . $field, '', str_replace( $tax . '_', '', $term) );
+			}
+		}
+		return $cleaned_term_ids;
 	}
 
 	function import_image( $image, $post_id, $title = '' ) {
